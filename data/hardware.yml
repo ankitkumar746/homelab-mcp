@@ -1,0 +1,83 @@
+cluster:
+  - name: homelab
+    cpu:
+      model: AMD Ryzen 9 7900
+      cores: 12
+      threads: 24
+      threads_per_core: 2
+      sockets: 1
+      architecture: x86_64
+      vendor: AuthenticAMD
+      base_clock_ghz: 3.7
+      max_boost_clock_ghz: 5.4
+      tdp_watts: 65
+      virtualization: AMD-V
+      cache:
+        L1: 768 KB
+        L2: 12 MB
+        L3: 64 MB
+    
+    motherboard:
+      model: MSI PRO B650-S WiFi ProSeries
+      vrm: 12+2 Duet Rail with P-PAK
+      pcie_slots:
+        - 2x PCIe 4.0/3.0 x16
+        - 1x PCIe 3.0 x1
+      m2_slots: 2x M.2 Gen4
+      sata_ports: 6x SATA 6 Gbps
+      ddr5_slots: 4
+      max_memory_gb: 128
+      max_memory_speed_mhz: 7200
+      lan: Realtek 2.5G
+      wifi: Wi-Fi 6E
+      bluetooth: 5.3
+      usb_c: USB 3.2 Gen 2x2 Type-C (20 Gbps)
+      pcb: 6-layer with 2 oz copper
+    
+    memory:
+      model: Patriot Viper Venom PVV564G600C30K
+      capacity_gb: 64
+      configuration: 2x32GB
+      type: DDR5
+      speed_mts: 6000
+      cas_latency: CL30
+      rank: 2R
+      total_installed_gb: 66
+    
+    storage:
+      - model: Crucial P310
+        capacity_gb: 1000
+        form_factor: 2280 M.2
+        interface: PCIe Gen4 NVMe
+        type: 3D NAND
+        sequential_read_mbps: 7100
+        sequential_write_mbps: 6000
+    
+    psu:
+      model: MSI MAG A850GL PCIE5
+      wattage: 850W
+      efficiency: 80 Plus Gold
+      modularity: Fully Modular
+      pcie5_ready: true
+    
+    cooling:
+      model: Thermalright Peerless Assassin 120 SE
+      type: Air cooler
+      design: Dual tower
+      heat_pipes: 6x 6mm copper
+      fans: 2x 120mm TL-C12C PWM
+      height_mm: 155
+      included_thermal_paste: true
+    
+    case:
+      model: Ant Esports 205 Air Mid-Tower
+      color: White
+      side_panel: Tempered Glass (left)
+      form_factor_support: ATX, Micro-ATX, Mini-ITX
+      preinstalled_fans: 4x 120mm ARGB
+      max_fans: 6
+      top_dust_cover: Magnetic
+    
+    kernel:
+      virtualization: KVM/AMD-V
+      numa_nodes: 1
