@@ -1,0 +1,69 @@
+cluster:
+  - name: homelab
+    host:
+      - name: wpa_supplicant
+        type: wifi
+        service_name: wpa_supplicant@wlp12s0.service
+        critical: true
+        configs:
+          - directory: /etc/wpa_supplicant
+            files:
+              - path: wpa_supplicant-wlp12s0.conf
+                description: WiFi SSID and PSK
+        note: WiFi uplink, if this fails no internet for host or VMs
+      
+      - name: pve-firewall
+        type: firewall
+        service_name: pve-firewall
+        configs:
+          - directory: /etc/pve/nodes/homelab
+            files:
+              - path: host.fw
+                description: Host-level firewall rules
+          - directory: /etc/pve/firewall
+            files:
+              - path: cluster.fw
+                description: Cluster-level firewall rules
+        live_command: iptables-save
+        note: Allows SSH/ICMP/8006 from 192.168.29.15, vmbr1 subnet, drops rest
+    
+    vms:
+      - name: infravm
+        services:
+          - name: dnsmasq
+            type: dhcp_dns_tftp
+            service_name: dnsmasq
+            configs:
+              - directory: /etc/dnsmasq.d
+                files:
+                  - path: dhcp.conf
+                    description: DHCP range, interface binding, gateway, DNS
+                  - path: tftp-ipxe.conf
+                    description: PXE boot and TFTP server
+                  - path: logging.conf
+                    description: DHCP/DNS logging
+            log_file: /var/log/dnsmasq.log
+          
+          - name: nginx
+            type: http_server
+            service_name: nginx
+            configs:
+              - directory: /etc/nginx/sites-available
+                files:
+                  - path: pxe
+                    description: PXE HTTP server for debian ISO and preseed
+            document_root: /var/www/html
+          
+          - name: pxe-boot
+            type: pxe
+            configs:
+              - directory: /srv/tftp/pxelinux.cfg
+                files:
+                  - path: default
+                    description: PXE boot menu
+              - directory: /var/www/html/pxe/preseed
+                files:
+                  - path: debian.cfg
+                    description: Debian preseed for automated install
+    
+    lxc: []

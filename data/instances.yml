@@ -1,0 +1,7 @@
+cluster:
+  - name: homelab
+    fqdn: homelab.ankit.lab
+    platform_user: platform
+    wan_ip: 192.168.29.167
+    # role: primary
+    proxmox_node: homelab

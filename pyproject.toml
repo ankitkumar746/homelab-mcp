@@ -1,7 +1,7 @@
 [project]
 name = "homelab-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "MCP server for providing live context from my Proxmox homelab into llm sessions"
 readme = "README.md"
 authors = [
     { name = "Ankit Kumar", email = "ankitkumarakt746@gmail.com" }
