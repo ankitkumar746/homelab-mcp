@@ -1,0 +1,18 @@
+name: Branch Name
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch matches type/scope
+        run: |
+          b="${{ github.head_ref }}"
+          echo "Branch: $b"
+          echo "$b" | grep -Eq '^(feat|fix|refactor|docs|test|chore|perf|ci|build|revert)/.+' || {
+            echo "::error::Branch must be 'type/scope' (feat/x, fix/y, ...)."
+            exit 1
+          }
