@@ -1,6 +1,6 @@
 import re
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 
 
 class SafetyLevel(Enum):
@@ -16,7 +16,10 @@ class SafetyResult:
 
 
 BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\brm\s+-[a-zA-Z]*f[a-zA-Z]*\s+(/[^\s]*|~)", re.IGNORECASE), "Recursive force delete on root-like paths"),
+    (
+        re.compile(r"\brm\s+-[a-zA-Z]*f[a-zA-Z]*\s+(/[^\s]*|~)", re.IGNORECASE),
+        "Recursive force delete on root-like paths",
+    ),
     (re.compile(r"\bdd\s+.*of=/dev/", re.IGNORECASE), "Direct disk write with dd"),
     (re.compile(r"\bmkfs\b", re.IGNORECASE), "Filesystem format command"),
     (re.compile(r"\bfdisk\b", re.IGNORECASE), "Disk partitioning command"),
@@ -35,12 +38,21 @@ BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 
 CONFIRM_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\brm\s+", re.IGNORECASE), "File deletion"),
-    (re.compile(r"\bsystemctl\s+(stop|restart|disable|mask)\s+", re.IGNORECASE), "Service management (stop/restart/disable)"),
+    (
+        re.compile(r"\bsystemctl\s+(stop|restart|disable|mask)\s+", re.IGNORECASE),
+        "Service management (stop/restart/disable)",
+    ),
     (re.compile(r"\bapt(-get)?\s+(install|remove|purge)\b", re.IGNORECASE), "Package management"),
     (re.compile(r"\biptables\s+", re.IGNORECASE), "Firewall modification"),
     (re.compile(r"\bpvesh\b.*(?i:put|post|delete)", re.IGNORECASE), "Proxmox API write operation"),
-    (re.compile(r"\b(qm|pct)\s+(start|stop|destroy|create|suspend|resume)\b", re.IGNORECASE), "VM/Container lifecycle change"),
-    (re.compile(r"\bip\s+(addr|route)\s+(add|del|flush)\b", re.IGNORECASE), "Network configuration change"),
+    (
+        re.compile(r"\b(qm|pct)\s+(start|stop|destroy|create|suspend|resume)\b", re.IGNORECASE),
+        "VM/Container lifecycle change",
+    ),
+    (
+        re.compile(r"\bip\s+(addr|route)\s+(add|del|flush)\b", re.IGNORECASE),
+        "Network configuration change",
+    ),
     (re.compile(r"\bsystemctl\s+(start|enable)\s+", re.IGNORECASE), "Starting/enabling a service"),
     (re.compile(r"\bmv\b.*\s+/etc/\b", re.IGNORECASE), "Moving files in /etc"),
     (re.compile(r"\bcp\b.*\s+/etc/\b", re.IGNORECASE), "Copying files into /etc"),
@@ -61,7 +73,10 @@ SAFE_COMMANDS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^\s*journalctl\b", re.IGNORECASE), "Read logs"),
     (re.compile(r"^\s*qm\s+(list|status|config)\b", re.IGNORECASE), "VM listing/status"),
     (re.compile(r"^\s*pct\s+(list|status|config)\b", re.IGNORECASE), "Container listing/status"),
-    (re.compile(r"^\s*ip\s+(addr|route|link|neigh)\s+(show|list)?\b", re.IGNORECASE), "Network status"),
+    (
+        re.compile(r"^\s*ip\s+(addr|route|link|neigh)\s+(show|list)?\b", re.IGNORECASE),
+        "Network status",
+    ),
     (re.compile(r"^\s*ping\b", re.IGNORECASE), "Ping diagnostic"),
     (re.compile(r"^\s*traceroute\b", re.IGNORECASE), "Traceroute diagnostic"),
     (re.compile(r"^\s*ss\b", re.IGNORECASE), "Socket statistics"),
@@ -85,7 +100,7 @@ def validate_command(command: str) -> SafetyResult:
 
     # Normalize: strip leading "sudo" (and optional flags like -n, -S, -u root)
     # so pattern matching evaluates the actual command, not the elevation mechanism
-    normalized = re.sub(r'^sudo\b\s*', '', stripped, flags=re.IGNORECASE)
+    normalized = re.sub(r"^sudo\b\s*", "", stripped, flags=re.IGNORECASE)
 
     if any("|" in normalized and p in normalized for p in ["curl", "wget"]) and any(
         s in normalized for s in ["sh", "bash", "dash", "zsh"]

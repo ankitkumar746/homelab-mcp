@@ -1,8 +1,9 @@
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 
 from homelab_mcp.config import AppConfig
 from homelab_mcp.data.loader import DataLoader
+
 
 @dataclass
 class AppContext:
