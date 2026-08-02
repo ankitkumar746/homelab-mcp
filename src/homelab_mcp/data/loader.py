@@ -70,4 +70,34 @@ class DataLoader:
             self._services = self._load_and_validate("services.yml", ServicesCluster)
         return self._services
 
+    def load_all(self) -> None:
+        for property_name in ['hardware', 'instances', 'network', 'services']:
+            getattr(self, property_name)  # Accessing the property to trigger loading
+
+    def get_node_names(self) -> list[str]:
+        return [node.name for node in self.instances.cluster]
+
+    def get_instance(self, node_name: str) -> InstanceNode | None:
+        for node in self.instances.cluster:
+            if node.name == node_name:
+                return node
+        return None
+
+    def get_hardware(self, node_name: str) -> HardwareNode | None:
+        for node in self.hardware.cluster:
+            if node.name == node_name:
+                return node
+        return None
+
+    def get_network(self, node_name: str) -> NetworkNode | None:
+        for node in self.network.cluster:
+            if node.name == node_name:
+                return node
+        return None
+
+    def get_services(self, node_name: str) -> ServicesNode | None:
+        for node in self.services.cluster:
+            if node.name == node_name:
+                return node
+        return None
     
