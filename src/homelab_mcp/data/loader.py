@@ -71,7 +71,7 @@ class DataLoader:
         return self._services
 
     def load_all(self) -> None:
-        for property_name in ['hardware', 'instances', 'network', 'services']:
+        for property_name in ('hardware', 'instances', 'network', 'services'):
             getattr(self, property_name)  # Accessing the property to trigger loading
 
     def get_node_names(self) -> list[str]:
