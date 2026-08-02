@@ -1,6 +1,5 @@
 import asyncio
 import shlex
-import time
 from pathlib import Path
 
 import asyncssh
@@ -50,10 +49,7 @@ class SSHClient:
         self._connections[host] = conn
         return conn
 
-    async def execute(
-        self, host: str, command: str, timeout: int = 30
-    ) -> tuple[str, str, int]:
-        start = time.monotonic()
+    async def execute(self, host: str, command: str, timeout: int = 30) -> tuple[str, str, int]:
         conn = await self._get_connection(host)
         try:
             result = await asyncio.wait_for(
@@ -61,10 +57,8 @@ class SSHClient:
                 timeout=timeout,
             )
         except TimeoutError:
-            duration = round((time.monotonic() - start) * 1000, 1)
             raise SSHError(f"Command timed out after {timeout}s: {command}")
 
-        duration = round((time.monotonic() - start) * 1000, 1)
         return result.stdout, result.stderr, result.exit_status
 
     async def read_file(self, host: str, path: str) -> str:
@@ -75,7 +69,7 @@ class SSHClient:
         return stdout
 
     async def close(self) -> None:
-        for host, conn in self._connections.items():
+        for conn in self._connections.values():
             if not conn.is_closed():
                 conn.close()
         self._connections.clear()
