@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from homelab_mcp.data_models import (    
+from homelab_mcp.data_models import (
     HardwareCluster,
     HardwareNode,
     InstanceCluster,
@@ -11,8 +11,9 @@ from homelab_mcp.data_models import (
     NetworkCluster,
     NetworkNode,
     ServicesCluster,
-    ServicesNode
+    ServicesNode,
 )
+
 
 # Custom exception for data loading errors
 class DataLoadError(Exception):
@@ -20,6 +21,7 @@ class DataLoadError(Exception):
         self.filename = filename
         self.detail = detail
         super().__init__(f"Error loading {filename}: {detail}")
+
 
 class DataLoader:
     def __init__(self, data_dir: Path) -> None:
@@ -33,7 +35,7 @@ class DataLoader:
         filepath = self.data_dir / filename
         if not filepath.exists():
             raise DataLoadError(filename, f"File not found: {filepath}")
-        with open(filepath, 'r') as file:
+        with open(filepath, "r") as file:
             data = yaml.safe_load(file)
         if data is None:
             raise DataLoadError(filename, "File is empty")
@@ -49,9 +51,9 @@ class DataLoader:
     @property
     def instances(self) -> InstanceCluster:
         if self._instances is None:
-            self._instances = self._load_and_validate('instances.yml', InstanceCluster)
+            self._instances = self._load_and_validate("instances.yml", InstanceCluster)
         return self._instances
-        
+
     @property
     def hardware(self) -> HardwareCluster:
         if self._hardware is None:
@@ -71,7 +73,7 @@ class DataLoader:
         return self._services
 
     def load_all(self) -> None:
-        for property_name in ('hardware', 'instances', 'network', 'services'):
+        for property_name in ("hardware", "instances", "network", "services"):
             getattr(self, property_name)  # Accessing the property to trigger loading
 
     def get_node_names(self) -> list[str]:
@@ -100,4 +102,3 @@ class DataLoader:
             if node.name == node_name:
                 return node
         return None
-    
