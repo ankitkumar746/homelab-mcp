@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from homelab_mcp.config import AppConfig
 from homelab_mcp.data.loader import DataLoader
+from homelab_mcp.ssh.client import SSHClient
 
 
 @dataclass
@@ -11,4 +12,5 @@ class AppContext:
 
     config: AppConfig
     data_loader: DataLoader
+    ssh: SSHClient
     logger: logging.Logger
