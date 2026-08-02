@@ -1,8 +1,8 @@
-import pytest
 from pathlib import Path
 
-from homelab_mcp.data.loader import DataLoader, DataLoadError
+import pytest
 
+from homelab_mcp.data.loader import DataLoader, DataLoadError
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 
