@@ -49,7 +49,7 @@ class DataLoader:
     @property
     def instances(self) -> InstanceCluster:
         if self._instances is None:
-            self._instances = self._load_and_validate('instances.yaml', InstanceCluster)
+            self._instances = self._load_and_validate('instances.yml', InstanceCluster)
         return self._instances
         
     @property
