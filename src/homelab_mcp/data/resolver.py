@@ -27,9 +27,7 @@ def resolve_service_configs(
     return None
 
 
-def search_services(
-    data: DataLoader, node_name: str, query: str
-) -> list[dict]:
+def search_services(data: DataLoader, node_name: str, query: str) -> list[dict]:
     query_lower = query.lower()
     results = []
     services_node = data.get_services(node_name)
@@ -42,12 +40,26 @@ def search_services(
 
     for svc in services_node.host:
         if matches(svc):
-            results.append({"name": svc.name, "type": svc.type, "location": "host", "service_name": svc.service_name})
+            results.append(
+                {
+                    "name": svc.name,
+                    "type": svc.type,
+                    "location": "host",
+                    "service_name": svc.service_name,
+                }
+            )
 
     for vm in services_node.vms:
         for svc in vm.services:
             if matches(svc):
-                results.append({"name": svc.name, "type": svc.type, "location": f"vm:{vm.name}", "service_name": svc.service_name})
+                results.append(
+                    {
+                        "name": svc.name,
+                        "type": svc.type,
+                        "location": f"vm:{vm.name}",
+                        "service_name": svc.service_name,
+                    }
+                )
 
     return results
 
