@@ -18,17 +18,17 @@ _SENSITIVE_KEYS = re.compile(
 def _redact(args: dict | None) -> dict | None:
     if not args:
         return args
-    return {
-        k: ("***REDACTED***" if _SENSITIVE_KEYS.search(k) else v)
-        for k, v in args.items()
-    }
+    return {k: ("***REDACTED***" if _SENSITIVE_KEYS.search(k) else v) for k, v in args.items()}
 
 
 class JsonFormatter(logging.Formatter):
     """JSON line formatter with ClickHouse DateTime64 timestamps."""
 
     def format(self, record: logging.LogRecord) -> str:
-        ts = datetime.fromtimestamp(record.created).strftime("%Y-%m-%d %H:%M:%S.%f")
+
+        ts = datetime.fromtimestamp(record.created, tz=datetime.timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S.%f"
+        )
 
         entry = {
             "ts": ts,
@@ -51,7 +51,7 @@ def setup_logger(log_dir: Path, log_level: str = "INFO") -> logging.Logger:
     """Set up JSON file logger. Creates a new timestamped file per execution."""
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
     log_file = log_dir / f"homelab_mcp_{timestamp}.jsonl"
 
     logger = logging.getLogger("homelab")

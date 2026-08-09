@@ -52,9 +52,7 @@ class SSHClient:
         self._connections[host] = conn
         return conn
 
-    async def execute(
-        self, host: str, command: str, timeout: int = 30
-    ) -> tuple[str, str, int]:
+    async def execute(self, host: str, command: str, timeout: int = 30) -> tuple[str, str, int]:
         start = time.monotonic()
         self._logger.debug(
             f"executing on {host}: {command[:100]}",
