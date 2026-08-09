@@ -1,5 +1,7 @@
 import asyncio
+import logging
 import shlex
+import time
 from pathlib import Path
 
 import asyncssh
@@ -12,8 +14,9 @@ class SSHError(Exception):
 
 
 class SSHClient:
-    def __init__(self, config: AppConfig) -> None:
+    def __init__(self, config: AppConfig, logger: logging.Logger) -> None:
         self._config = config
+        self._logger = logger
         self._connections: dict[str, asyncssh.SSHClientConnection] = {}
 
     def _resolve_key_path(self) -> Path:
@@ -50,6 +53,15 @@ class SSHClient:
         return conn
 
     async def execute(self, host: str, command: str, timeout: int = 30) -> tuple[str, str, int]:
+        start = time.monotonic()
+        self._logger.debug(
+            f"executing on {host}: {command[:100]}",
+            extra={
+                "event": "ssh.command",
+                "command": command,
+                "node": host,
+            },
+        )
         conn = await self._get_connection(host)
         try:
             result = await asyncio.wait_for(
@@ -57,8 +69,28 @@ class SSHClient:
                 timeout=timeout,
             )
         except TimeoutError:
+            duration = round((time.monotonic() - start) * 1000, 1)
+            self._logger.error(
+                f"command timed out after {timeout}s: {command[:80]}",
+                extra={
+                    "event": "ssh.error",
+                    "command": command,
+                    "duration_ms": duration,
+                    "status": "error",
+                },
+            )
             raise SSHError(f"Command timed out after {timeout}s: {command}")
 
+        duration = round((time.monotonic() - start) * 1000, 1)
+        self._logger.debug(
+            f"command completed in {duration}ms (exit {result.exit_status})",
+            extra={
+                "event": "ssh.command",
+                "command": command,
+                "duration_ms": duration,
+                "status": "success" if result.exit_status == 0 else "error",
+            },
+        )
         return result.stdout, result.stderr, result.exit_status
 
     async def read_file(self, host: str, path: str) -> str:
