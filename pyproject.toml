@@ -18,6 +18,7 @@ dependencies = [
 
 [project.scripts]
 homelab-mcp = "homelab_mcp.server:main"  # Entrypoint 
+homelab-logview = "homelab_mcp.logview:main"
 
 [build-system]
 requires = ["uv_build>=0.11.21,<0.12.0"]
