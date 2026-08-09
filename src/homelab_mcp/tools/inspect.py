@@ -117,7 +117,7 @@ async def read_logs(
             f"Reading logs for {service_name} on {node_name} (last {lines} lines)"
         )
         try:
-            stdout, stderr, exit_code = await app_ctx.ssh.execute(
+            stdout, stderr, _exit_code = await app_ctx.ssh.execute(
                 ip, f"sudo journalctl -u {shlex.quote(safe_name)} --no-pager -n {lines}"
             )
         except SSHError as e:
