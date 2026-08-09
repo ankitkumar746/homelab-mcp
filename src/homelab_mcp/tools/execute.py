@@ -19,9 +19,7 @@ async def run_command(ctx: Context, node_name: str, command: str) -> dict:
     app_ctx: AppContext = ctx.request_context.lifespan_context
     logger = app_ctx.logger
 
-    with log_tool_call(
-        logger, "run_command", node=node_name, command=command
-    ) as call_ctx:
+    with log_tool_call(logger, "run_command", node=node_name, command=command) as call_ctx:
         ip = resolve_node_ip(app_ctx.data, node_name)
         if not ip:
             call_ctx.status = "error"

@@ -106,9 +106,7 @@ def get_service(ctx: Context, node_name: str, service_name: str) -> dict:
         service_name: Name of the service (e.g., 'dnsmasq')
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
-    with log_tool_call(
-        app_ctx.logger, "get_service", node=node_name, service_name=service_name
-    ):
+    with log_tool_call(app_ctx.logger, "get_service", node=node_name, service_name=service_name):
         node = app_ctx.data.get_services(node_name)
         if not node:
             return {"error": f"Node '{node_name}' not found in services data"}
@@ -142,9 +140,7 @@ def search_services_tool(ctx: Context, node_name: str, query: str) -> dict:
         query: Keyword to search for (matches name, type, or note)
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
-    with log_tool_call(
-        app_ctx.logger, "search_services_tool", node=node_name, query=query
-    ):
+    with log_tool_call(app_ctx.logger, "search_services_tool", node=node_name, query=query):
         results = search_services(app_ctx.data, node_name, query)
         if not results:
             return {
@@ -163,9 +159,7 @@ def list_configs(ctx: Context, node_name: str, service_name: str) -> dict:
         service_name: Name of the service (e.g., 'dnsmasq')
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
-    with log_tool_call(
-        app_ctx.logger, "list_configs", node=node_name, service_name=service_name
-    ):
+    with log_tool_call(app_ctx.logger, "list_configs", node=node_name, service_name=service_name):
         from homelab_mcp.data.resolver import resolve_service_configs
 
         configs = resolve_service_configs(app_ctx.data, node_name, service_name)

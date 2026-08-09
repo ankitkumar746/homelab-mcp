@@ -16,8 +16,7 @@ def _validate_service_name(name: str) -> str:
     """Validate service name contains only safe characters."""
     if not _SERVICE_NAME_RE.match(name):
         raise ValueError(
-            f"Invalid service name: {name!r}. "
-            "Only alphanumeric, @, _, ., - are allowed."
+            f"Invalid service name: {name!r}. Only alphanumeric, @, _, ., - are allowed."
         )
     return name
 
@@ -31,9 +30,7 @@ async def read_config(ctx: Context, node_name: str, file_path: str) -> dict:
         file_path: Absolute path to the config file on the node
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
-    with log_tool_call(
-        app_ctx.logger, "read_config", node=node_name, file_path=file_path
-    ):
+    with log_tool_call(app_ctx.logger, "read_config", node=node_name, file_path=file_path):
         ip = resolve_node_ip(app_ctx.data, node_name)
         if not ip:
             return {"error": f"Node '{node_name}' not found"}
@@ -56,9 +53,7 @@ async def check_service(ctx: Context, node_name: str, service_name: str) -> dict
         service_name: systemd service name (e.g., 'dnsmasq')
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
-    with log_tool_call(
-        app_ctx.logger, "check_service", node=node_name, service_name=service_name
-    ):
+    with log_tool_call(app_ctx.logger, "check_service", node=node_name, service_name=service_name):
         try:
             safe_name = _validate_service_name(service_name)
         except ValueError as e:
@@ -85,9 +80,7 @@ async def check_service(ctx: Context, node_name: str, service_name: str) -> dict
 
 
 @mcp.tool()
-async def read_logs(
-    ctx: Context, node_name: str, service_name: str, lines: int = 50
-) -> dict:
+async def read_logs(ctx: Context, node_name: str, service_name: str, lines: int = 50) -> dict:
     """Read journalctl logs for a service on a node via SSH.
 
     Args:
@@ -113,9 +106,7 @@ async def read_logs(
         if not ip:
             return {"error": f"Node '{node_name}' not found"}
 
-        await ctx.info(
-            f"Reading logs for {service_name} on {node_name} (last {lines} lines)"
-        )
+        await ctx.info(f"Reading logs for {service_name} on {node_name} (last {lines} lines)")
         try:
             stdout, stderr, _exit_code = await app_ctx.ssh.execute(
                 ip, f"sudo journalctl -u {shlex.quote(safe_name)} --no-pager -n {lines}"
