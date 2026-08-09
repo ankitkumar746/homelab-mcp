@@ -1,0 +1,8 @@
+{
+  "mcp": {
+    "homelab-mcp": {
+      "type": "local",
+      "command": ["uv", "--directory", "/Users/akt746/Documents/code/homelab-mcp", "run", "homelab-mcp"]
+    }
+  }
+}
