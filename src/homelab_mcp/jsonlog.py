@@ -6,7 +6,7 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -26,9 +26,7 @@ class JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
 
-        ts = datetime.fromtimestamp(record.created, tz=datetime.timezone.utc).strftime(
-            "%Y-%m-%d %H:%M:%S.%f"
-        )
+        ts = datetime.fromtimestamp(record.created, tz=UTC).strftime("%Y-%m-%d %H:%M:%S.%f")
 
         entry = {
             "ts": ts,
@@ -51,7 +49,7 @@ def setup_logger(log_dir: Path, log_level: str = "INFO") -> logging.Logger:
     """Set up JSON file logger. Creates a new timestamped file per execution."""
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now(tz=datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
     log_file = log_dir / f"homelab_mcp_{timestamp}.jsonl"
 
     logger = logging.getLogger("homelab")

@@ -14,13 +14,13 @@ class AppConfig(BaseSettings):
     ssh_key_path: str = Field(default="~/.ssh/id_ed25519", description="Path to SSH private key")
 
     data_dir: Path = Field(default=Path("data"), description="Path to YAML data directory")
-    log_path: Path = Field(default=Path("logs"), description="Directory to store log files")
+    log_dir: Path = Field(default=Path("logs"), description="Directory to store log files")
     log_level: str = Field(
         default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
     )
 
     transport: Literal["stdio", "streamable-http"] = Field(
-        default="studio", description="MCP transport mode"
+        default="stdio", description="MCP transport mode"
     )
     http_port: int = Field(default=8000, description="HTTP port for streamable-http transport mode")
 

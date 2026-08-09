@@ -9,11 +9,15 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "asyncssh>=2.24.0",
+    "mcp[cli]>=1.27,<2",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "python-dotenv>=1.2.2",
     "pyyaml>=6.0.3",
 ]
+
+[project.scripts]
+homelab-mcp = "homelab_mcp.server:main"  # Entrypoint 
 
 [build-system]
 requires = ["uv_build>=0.11.21,<0.12.0"]
