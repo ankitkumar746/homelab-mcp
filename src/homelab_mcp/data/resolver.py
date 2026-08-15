@@ -1,5 +1,22 @@
+from dataclasses import dataclass
+
+from homelab_mcp.config import AppConfig
 from homelab_mcp.data.loader import DataLoader
 from homelab_mcp.data_models import ConfigDirectory, ServiceEntry
+
+
+@dataclass
+class SshTarget:
+    """A fully-resolved SSH destination (per-node settings merged with global config)."""
+
+    host: str
+    user: str
+    port: int
+    key_path: str
+    use_sudo: bool
+    node_name: str
+    kind: str
+    jump: "SshTarget | None" = None
 
 
 def resolve_config_paths(configs: list[ConfigDirectory]) -> list[dict[str, str]]:
@@ -64,6 +81,43 @@ def search_services(data: DataLoader, node_name: str, query: str) -> list[dict]:
     return results
 
 
-def resolve_node_ip(data: DataLoader, node_name: str) -> str | None:
+def resolve_ssh_target(
+    data: DataLoader, config: AppConfig, node_name: str, _visited: set[str] | None = None
+) -> SshTarget | None:
+    """Resolve a node name to a fully-merged SshTarget, including its jump chain.
+
+    Returns None if the node is unknown; raises ValueError on jump-host cycles
+    or a jump_via that names an unknown node.
+    """
     instance = data.get_instance(node_name)
-    return instance.wan_ip if instance else None
+    if not instance:
+        return None
+
+    visited = _visited if _visited is not None else set()
+    if node_name in visited:
+        raise ValueError(f"SSH jump-host cycle detected at '{node_name}'")
+    visited.add(node_name)
+
+    settings = instance.ssh
+    jump: SshTarget | None = None
+    if settings and settings.jump_via:
+        jump = resolve_ssh_target(data, config, settings.jump_via, visited)
+        if jump is None:
+            raise ValueError(
+                f"Jump host '{settings.jump_via}' (referenced by '{node_name}') not found"
+            )
+
+    return SshTarget(
+        host=instance.wan_ip,
+        user=(settings.user if settings and settings.user else config.ssh_user),
+        port=(settings.port if settings and settings.port else config.ssh_port),
+        key_path=(settings.key_path if settings and settings.key_path else config.ssh_key_path),
+        use_sudo=(
+            config.ssh_use_sudo
+            if settings is None or settings.use_sudo is None
+            else settings.use_sudo
+        ),
+        node_name=node_name,
+        kind=instance.kind,
+        jump=jump,
+    )

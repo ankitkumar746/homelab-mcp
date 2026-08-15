@@ -85,7 +85,7 @@ cluster:
         interfaces:
           - name: ens18
             bridge: vmbr1
-            ip: 192.168.200.2
+            ip: 192.168.200.50
         dhcp_scope:
           service: dnsmasq
           interface: ens18

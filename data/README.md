@@ -127,10 +127,30 @@ Update all four YAML files: `instances.yaml`, `hardware.yaml`,
 
 ## How to Add a New VM
 
-1. Add VM to `network.yaml` under the node's `vms:` list
-2. Add VM to `services.yaml` under the node's `vms:` list
-3. Add VM to SQLite: `INSERT INTO vms (name, vmid, node, ...) VALUES (...)`
+1. Add VM to `instances.yaml` as a new cluster entry with `kind: vm` and an
+   `ssh:` block (this is what makes it reachable by the MCP SSH tools)
+2. Add VM to `network.yaml` under the node's `vms:` list
+3. Add VM to `services.yaml` under the node's `vms:` list
 4. Use the same `name` in all three places
+
+Example `instances.yaml` entry (VM reachable through the Proxmox node as a
+jump host):
+
+```yaml
+cluster:
+  - name: myvm
+    fqdn: myvm.ankit.lab
+    platform_user: platform
+    wan_ip: 192.168.200.50
+    proxmox_node: homelab
+    kind: vm
+    ssh:
+      jump_via: homelab        # tunnel through another resolvable node
+      user: mcp                # default: global HOMELAB_SSH_USER
+      # port: 22               # default: global HOMELAB_SSH_PORT
+      # key_path: ~/.ssh/key   # default: global HOMELAB_SSH_KEY_PATH
+      # use_sudo: true         # default: global HOMELAB_SSH_USE_SUDO
+```
 
 ## How to Add a New LXC Container
 
