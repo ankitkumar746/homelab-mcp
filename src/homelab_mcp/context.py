@@ -11,6 +11,6 @@ class AppContext:
     """Application context containing configuration and data loader."""
 
     config: AppConfig
-    data_loader: DataLoader
+    data: DataLoader
     ssh: SSHClient
     logger: logging.Logger
