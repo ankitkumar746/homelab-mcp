@@ -263,20 +263,27 @@ reaching your Proxmox server:
 
 ```
 BLOCKED  →  Rejected immediately, never reaches the server
-            Examples: rm -rf /, dd of=/dev/, shutdown, iptables -F
+             Examples: rm -rf /, dd of=/dev/, shutdown, iptables -F,
+             overwriting /etc/passwd via > or tee, curl | sh
 
 CONFIRM  →  You get asked for approval before it runs
             Examples: systemctl restart, apt install, rm (any), iptables rules,
-            VM lifecycle (start/stop/destroy), editing files in /etc
+            VM lifecycle (start/stop/destroy), editing files in /etc,
+            anything not on the SAFE allowlist (default is CONFIRM)
 
 SAFE     →  Executes directly, no approval needed
-            Examples: cat, ls, systemctl status, journalctl, ping, ip addr,
-            qm list, qm status, df, ps
+            Examples: cat, ls, systemctl status, journalctl, ping, ip addr show,
+            qm list, qm status, df, ps, grep/cut/jq-style stream filters
 ```
 
-Anything not explicitly in the SAFE list defaults to CONFIRM — the LLM must ask
-you first. This means even if the LLM invents a command we've never seen before,
-it can't run it silently.
+**Compound commands are validated segment-by-segment.** The command is split
+quote-aware on `;`, `&&`, `||`, `|`, `&`, and newlines — and the bodies of
+`$(...)` / backtick substitutions are checked as their own commands. The final
+verdict is the most severe segment: `cat /etc/hosts; useradd evil` is CONFIRM
+(not SAFE), and `echo $(reboot)` is BLOCKED. A command that can't be parsed
+with certainty (unbalanced quotes) fails closed to CONFIRM. SAFE is only
+granted when *every* segment is on the allowlist — this means even if the LLM
+invents a command we've never seen before, it can't run it silently.
 
 ## Running Tests
 
@@ -284,8 +291,9 @@ it can't run it silently.
 uv run pytest tests/ -v
 ```
 
-This runs all tests in the `tests/` directory. The safety module has 57 tests
-covering blocked, safe, confirm, and sudo-normalization patterns.
+This runs all tests in the `tests/` directory. The safety module has 89 tests
+covering blocked, safe, confirm, sudo-normalization, and compound-command
+segmentation patterns.
 
 ## Logging
 
@@ -387,7 +395,7 @@ homelab-mcp/
 │   │   └── resolver.py     # Resolve service→config paths, search, etc.
 │   ├── ssh/                # SSH connection and safety
 │   │   ├── client.py       # AsyncSSH connection pool with logging
-│   │   └── safety.py       # 3-tier command safety pipeline (sudo-aware)
+│   │   └── safety.py       # 3-tier command safety pipeline (segment-aware, sudo-aware)
 │   ├── tools/              # MCP tools (actions the LLM can take)
 │   │   ├── inventory.py    # list_nodes, get_hardware, list_services, etc.
 │   │   ├── inspect.py      # read_config, check_service, read_logs, etc.
