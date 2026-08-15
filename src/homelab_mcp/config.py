@@ -12,6 +12,9 @@ class AppConfig(BaseSettings):
     ssh_port: int = Field(default=22, description="SSH Port")
     ssh_user: str = Field(default="mcp", description="SSH username")
     ssh_key_path: str = Field(default="~/.ssh/id_ed25519", description="Path to SSH private key")
+    ssh_use_sudo: bool = Field(
+        default=True, description="Prefix privileged commands with sudo by default"
+    )
 
     data_dir: Path = Field(default=Path("data"), description="Path to YAML data directory")
     log_dir: Path = Field(default=Path("logs"), description="Directory to store log files")

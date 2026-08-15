@@ -146,12 +146,24 @@ class ServicesCluster(BaseModel):
     cluster: list[ServicesNode]
 
 
+class SshSettings(BaseModel):
+    """Per-node SSH connection settings; unset fields fall back to global config."""
+
+    jump_via: str | None = None
+    user: str | None = None
+    port: int | None = None
+    key_path: str | None = None
+    use_sudo: bool | None = None
+
+
 class InstanceNode(BaseModel):
     name: str
     fqdn: str
     platform_user: str
     wan_ip: str
     proxmox_node: str
+    kind: str = "proxmox"
+    ssh: SshSettings | None = None
     role: str | None = None
     single_node: bool | None = None
     notes: str | None = None
