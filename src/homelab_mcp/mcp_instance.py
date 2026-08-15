@@ -19,7 +19,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     logger.info("server starting", extra={"event": "server.start"})
     ssh = SSHClient(config, logger)
     try:
-        yield AppContext(config=config, data_loader=data, ssh=ssh, logger=logger)
+        yield AppContext(config=config, data=data, ssh=ssh, logger=logger)
     finally:
         logger.info("server stopping", extra={"event": "server.stop"})
         await ssh.close()
