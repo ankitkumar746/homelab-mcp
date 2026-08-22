@@ -5,15 +5,3 @@ cluster:
     wan_ip: 192.168.29.167
     # role: primary
     proxmox_node: homelab
-
-  - name: infravm
-    fqdn: infra-node-1.ankit.lab
-    platform_user: platform
-    wan_ip: 192.168.200.50
-    proxmox_node: homelab
-    kind: vm
-    ssh:
-      jump_via: homelab
-      user: mcp
-      use_sudo: true
-    notes: Infra VM (id 50001) - iPXE, DHCP/DNS (dnsmasq), nginx PXE server. Static IP below DHCP range.

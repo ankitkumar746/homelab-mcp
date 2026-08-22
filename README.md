@@ -211,7 +211,6 @@ project root (a `.env.example` template is provided).
 | `HOMELAB_SSH_PORT` | `22` | SSH port |
 | `HOMELAB_SSH_USER` | `mcp` | SSH username on Proxmox |
 | `HOMELAB_SSH_KEY_PATH` | `~/.ssh/homelab_mcp` | Path to SSH private key on your machine |
-| `HOMELAB_SSH_USE_SUDO` | `true` | Prefix privileged tool commands with `sudo` |
 | `HOMELAB_DATA_DIR` | `data` | Path to YAML data directory |
 | `HOMELAB_LOG_DIR` | `logs` | Directory for JSONL log files (one per execution) |
 | `HOMELAB_TRANSPORT` | `stdio` | MCP transport: `stdio` or `streamable-http` |
@@ -220,75 +219,6 @@ project root (a `.env.example` template is provided).
 
 All variables have sensible defaults, so a minimal `.env` only needs to override
 what differs in your setup.
-
-## SSH Access to VMs (Jump Hosts)
-
-VMs on internal bridges (e.g., `vmbr1` — 192.168.200.0/24) aren't reachable
-from your workstation directly. The MCP server reaches them by tunneling
-through the Proxmox node, the same way you would with `ProxyJump`.
-
-A VM becomes an SSH target by adding it to `data/instances.yml` with
-`kind: vm` and an `ssh:` block:
-
-```yaml
-  - name: infravm
-    fqdn: infra-node-1.ankit.lab
-    platform_user: platform
-    wan_ip: 192.168.200.50
-    proxmox_node: homelab
-    kind: vm
-    ssh:
-      jump_via: homelab    # resolvable node name to tunnel through (chains allowed)
-      user: mcp            # optional — falls back to HOMELAB_SSH_USER
-      # port / key_path / use_sudo are optional too
-```
-
-After that, every SSH tool (`read_config`, `check_service`, `read_logs`,
-`network_status`, `run_command`) accepts `node_name="infravm"` and the safety
-pipeline applies unchanged.
-
-### One-time setup for a new VM target
-
-The MCP server authenticates with keys only (no passwords). The setup mirrors
-the Proxmox node: a dedicated `mcp` user on the VM with your public key.
-
-First, create the user on the VM (SSH in however you normally would, e.g.
-through the Proxmox jump host as an admin user):
-
-```bash
-ssh -i ~/.ssh/homelab_mcp -J platform@192.168.29.167 platform@192.168.200.50
-```
-
-```bash
-sudo useradd -r -m -s /bin/bash mcp
-sudo mkdir -p /home/mcp/.ssh && sudo chmod 700 /home/mcp/.ssh
-# paste your Mac's ~/.ssh/homelab_mcp.pub contents:
-echo "ssh-ed25519 AAAA... homelab-mcp" | sudo tee /home/mcp/.ssh/authorized_keys
-sudo chmod 600 /home/mcp/.ssh/authorized_keys && sudo chown -R mcp:mcp /home/mcp/.ssh
-```
-
-Then, for the read-only inspect tools to work, give the VM's `mcp` user
-restricted passwordless sudo (mirror of the Proxmox Option B above), on the VM:
-
-```bash
-sudo visudo -f /etc/sudoers.d/mcp
-```
-
-```
-mcp ALL=(ALL) NOPASSWD: /usr/bin/systemctl status *, \
-    /usr/bin/journalctl *, \
-    /usr/bin/cat /etc/*, /usr/bin/cat /srv/*, /usr/bin/cat /var/*, \
-    /usr/sbin/ip addr show, /usr/sbin/ip route show, \
-    /usr/bin/ss -tlnp
-```
-
-Verify from your Mac (should print the VM's hostname without a password —
-this also records the VM's host key in `~/.ssh/known_hosts`, which asyncssh
-requires):
-
-```bash
-ssh -i ~/.ssh/homelab_mcp -J mcp@192.168.29.167 mcp@192.168.200.50 hostname
-```
 
 ## Available Tools
 
@@ -446,8 +376,7 @@ homelab-mcp/
 ├── .env.example            # Template for environment variables
 ├── .opencode/config.json   # opencode MCP client config
 ├── data/                   # Static YAML data (your homelab definition)
-│   ├── instances.yml       # Nodes + VM SSH targets (jump hosts, users)
-│   ├── hardware.yml
+│   ├── instances.yml
 │   ├── hardware.yml
 │   ├── network.yml
 │   ├── services.yml

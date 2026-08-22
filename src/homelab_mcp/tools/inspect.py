@@ -4,7 +4,7 @@ import shlex
 from mcp.server.fastmcp import Context
 
 from homelab_mcp.context import AppContext
-from homelab_mcp.data.resolver import resolve_ssh_target
+from homelab_mcp.data.resolver import resolve_node_ip
 from homelab_mcp.jsonlog import log_tool_call
 from homelab_mcp.mcp_instance import mcp
 from homelab_mcp.ssh.client import SSHError
@@ -21,38 +21,23 @@ def _validate_service_name(name: str) -> str:
     return name
 
 
-def _resolve_target(app_ctx: AppContext, node_name: str):
-    """Resolve node to SshTarget; returns (target, error_dict). Exactly one is set."""
-    try:
-        target = resolve_ssh_target(app_ctx.data, app_ctx.config, node_name)
-    except ValueError as e:
-        return None, {"error": str(e)}
-    if target is None:
-        return None, {"error": f"Node '{node_name}' not found"}
-    return target, None
-
-
-def _sudo_prefix(target) -> str:
-    return "sudo " if target.use_sudo else ""
-
-
 @mcp.tool()
 async def read_config(ctx: Context, node_name: str, file_path: str) -> dict:
     """Read the current contents of a config file from a node via SSH.
 
     Args:
-        node_name: Name of the node (e.g., 'homelab') or VM (e.g., 'infravm')
+        node_name: Name of the Proxmox node (e.g., 'homelab')
         file_path: Absolute path to the config file on the node
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
     with log_tool_call(app_ctx.logger, "read_config", node=node_name, file_path=file_path):
-        target, err = _resolve_target(app_ctx, node_name)
-        if err:
-            return err
+        ip = resolve_node_ip(app_ctx.data, node_name)
+        if not ip:
+            return {"error": f"Node '{node_name}' not found"}
 
-        await ctx.info(f"Reading {file_path} from {node_name} ({target.user}@{target.host})")
+        await ctx.info(f"Reading {file_path} from {node_name} ({ip})")
         try:
-            content = await app_ctx.ssh.read_file(target, file_path)
+            content = await app_ctx.ssh.read_file(ip, file_path)
         except SSHError as e:
             return {"error": str(e)}
 
@@ -64,7 +49,7 @@ async def check_service(ctx: Context, node_name: str, service_name: str) -> dict
     """Check systemd status of a service on a node via SSH.
 
     Args:
-        node_name: Name of the node (e.g., 'homelab') or VM (e.g., 'infravm')
+        node_name: Name of the Proxmox node (e.g., 'homelab')
         service_name: systemd service name (e.g., 'dnsmasq')
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
@@ -74,15 +59,14 @@ async def check_service(ctx: Context, node_name: str, service_name: str) -> dict
         except ValueError as e:
             return {"error": str(e)}
 
-        target, err = _resolve_target(app_ctx, node_name)
-        if err:
-            return err
+        ip = resolve_node_ip(app_ctx.data, node_name)
+        if not ip:
+            return {"error": f"Node '{node_name}' not found"}
 
         await ctx.info(f"Checking service {service_name} on {node_name}")
         try:
             stdout, stderr, exit_code = await app_ctx.ssh.execute(
-                target,
-                f"{_sudo_prefix(target)}systemctl status {shlex.quote(safe_name)} --no-pager -l",
+                ip, f"sudo systemctl status {shlex.quote(safe_name)} --no-pager -l"
             )
         except SSHError as e:
             return {"error": str(e)}
@@ -100,7 +84,7 @@ async def read_logs(ctx: Context, node_name: str, service_name: str, lines: int 
     """Read journalctl logs for a service on a node via SSH.
 
     Args:
-        node_name: Name of the node (e.g., 'homelab') or VM (e.g., 'infravm')
+        node_name: Name of the Proxmox node (e.g., 'homelab')
         service_name: systemd service name (e.g., 'dnsmasq')
         lines: Number of log lines to return (default 50, max 1000)
     """
@@ -118,15 +102,14 @@ async def read_logs(ctx: Context, node_name: str, service_name: str, lines: int 
         except ValueError as e:
             return {"error": str(e)}
 
-        target, err = _resolve_target(app_ctx, node_name)
-        if err:
-            return err
+        ip = resolve_node_ip(app_ctx.data, node_name)
+        if not ip:
+            return {"error": f"Node '{node_name}' not found"}
 
         await ctx.info(f"Reading logs for {service_name} on {node_name} (last {lines} lines)")
         try:
             stdout, stderr, _exit_code = await app_ctx.ssh.execute(
-                target,
-                f"{_sudo_prefix(target)}journalctl -u {shlex.quote(safe_name)} --no-pager -n {lines}",
+                ip, f"sudo journalctl -u {shlex.quote(safe_name)} --no-pager -n {lines}"
             )
         except SSHError as e:
             return {"error": str(e)}
@@ -144,20 +127,19 @@ async def network_status(ctx: Context, node_name: str) -> dict:
     """Get current network status on a node — interfaces, routes, and listening ports via SSH.
 
     Args:
-        node_name: Name of the node (e.g., 'homelab') or VM (e.g., 'infravm')
+        node_name: Name of the Proxmox node (e.g., 'homelab')
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
     with log_tool_call(app_ctx.logger, "network_status", node=node_name):
-        target, err = _resolve_target(app_ctx, node_name)
-        if err:
-            return err
+        ip = resolve_node_ip(app_ctx.data, node_name)
+        if not ip:
+            return {"error": f"Node '{node_name}' not found"}
 
         await ctx.info(f"Checking network status on {node_name}")
-        prefix = _sudo_prefix(target)
         try:
-            addr_out, _, _ = await app_ctx.ssh.execute(target, f"{prefix}ip addr show")
-            route_out, _, _ = await app_ctx.ssh.execute(target, f"{prefix}ip route show")
-            ports_out, _, _ = await app_ctx.ssh.execute(target, f"{prefix}ss -tlnp")
+            addr_out, _, _ = await app_ctx.ssh.execute(ip, "sudo ip addr show")
+            route_out, _, _ = await app_ctx.ssh.execute(ip, "sudo ip route show")
+            ports_out, _, _ = await app_ctx.ssh.execute(ip, "sudo ss -tlnp")
         except SSHError as e:
             return {"error": str(e)}
 
