@@ -20,8 +20,6 @@ def list_nodes(ctx: Context) -> dict:
                     "wan_ip": instance.wan_ip,
                     "platform_user": instance.platform_user,
                     "proxmox_node": instance.proxmox_node,
-                    "kind": instance.kind,
-                    "ssh_jump_via": (instance.ssh.jump_via if instance.ssh else None),
                 }
             )
         return {"nodes": nodes}
