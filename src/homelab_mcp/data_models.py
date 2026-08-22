@@ -152,6 +152,8 @@ class InstanceNode(BaseModel):
     platform_user: str
     wan_ip: str
     proxmox_node: str
+    kind: str = "proxmox"
+    vmid: int | None = None
     role: str | None = None
     single_node: bool | None = None
     notes: str | None = None

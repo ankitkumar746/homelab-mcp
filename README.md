@@ -220,22 +220,81 @@ project root (a `.env.example` template is provided).
 All variables have sensible defaults, so a minimal `.env` only needs to override
 what differs in your setup.
 
+## Guest Access (VMs and LXC Containers)
+
+VMs and containers are reached **through the Proxmox node** using Proxmox-native
+transports — never SSH'd into directly. No agent users, keys, or sudoers inside
+the guest are needed.
+
+| Guest kind | Transport | Runs as (in guest) | Policy |
+|---|---|---|---|
+| `vm` | `qm guest exec` (requires qemu-guest-agent in the guest) | root | **read-only** |
+| `lxc` | `pct exec` | root (namespaced for unprivileged containers) | **read-only** |
+
+A guest becomes addressable by adding it to `data/instances.yml`:
+
+```yaml
+  - name: infravm
+    fqdn: infra-node-1.ankit.lab
+    platform_user: platform
+    wan_ip: 192.168.200.50        # informational — guest access routes via proxmox_node
+    proxmox_node: homelab         # the hypervisor that owns this guest
+    kind: vm                      # or: lxc
+    vmid: 50001
+```
+
+Every SSH tool (`read_config`, `check_service`, `read_logs`, `network_status`,
+`run_command`) accepts guest names, and commands are wrapped automatically:
+`sudo qm guest exec <vmid> -- bash -c '<command>'` (VM) or
+`sudo pct exec <vmid> -- bash -c '<command>'` (LXC).
+
+### Read-only enforcement
+
+Guest commands run as root inside the guest with no guest-side permission
+layer, so two guards apply:
+
+1. **Allowlist gate** — on vm/lxc targets, only SAFE (allowlisted read-only)
+   commands may run via `run_command`. CONFIRM/BLOCKED commands are rejected
+   outright, with no approval prompt — the approval path does not exist for
+   guests. Mutation through the MCP is impossible by design.
+2. **Route lockdown** — typing raw `pct exec ...` or `qm guest exec ...` in
+   `run_command` against the Proxmox host is BLOCKED. Otherwise an approved
+   host command could wrap any mutating guest command and bypass the gate.
+   The gated vm/lxc node targets are the only route into guests.
+
+### One-time setup
+
+On the Proxmox node (extends the Option B sudoers from the setup section):
+
+```
+mcp ALL=(ALL) NOPASSWD: /usr/sbin/qm guest exec 50001 *, \
+    /usr/sbin/pct exec 10001 *
+```
+
+One line per guest, scoped to the vmid — new guests become a deliberate
+sudoers edit, not a silent inheritance. For VMs, the guest must have
+`qemu-guest-agent` installed (Debian: `apt install qemu-guest-agent`) and the
+`agent: 1` flag set in its qm config.
+
+> **Unprivileged-only rule:** `pct exec` into a *privileged* container is
+> host-root-equivalent. Only grant it for unprivileged containers.
+
 ## Available Tools
 
 | Tool | What it does |
 |---|---|
-| `list_nodes` | List all Proxmox nodes |
+| `list_nodes` | List all registered nodes (proxmox, vms, lxcs) with kind and vmid |
 | `get_hardware` | Hardware specs for a node (CPU, RAM, storage, etc.) |
 | `get_network` | Network topology — NICs, WAN, bridges, NAT, DHCP, PXE |
 | `list_services` | All services on a node (host + VMs + LXC) |
 | `get_service` | Details for a specific service by name |
 | `search_services` | Search services by keyword (matches name, type, notes) |
 | `list_configs` | Config files for a service, with full reconstructed paths |
-| `read_config` | SSH to node and read a config file's current contents |
-| `check_service` | SSH to node and check systemd status of a service |
-| `read_logs` | SSH to node and read journalctl logs for a service |
-| `network_status` | SSH to node and check interfaces, routes, listening ports |
-| `run_command` | SSH to node and run a command (goes through safety pipeline) |
+| `read_config` | Read a config file's current contents (node, VM, or LXC) |
+| `check_service` | Check systemd status of a service (node, VM, or LXC) |
+| `read_logs` | Read journalctl logs for a service (node, VM, or LXC) |
+| `network_status` | Check interfaces, routes, listening ports (node, VM, or LXC) |
+| `run_command` | Run a command (safety pipeline; read-only gate on guests) |
 
 ## Available Resources
 
@@ -273,7 +332,8 @@ CONFIRM  →  You get asked for approval before it runs
 
 SAFE     →  Executes directly, no approval needed
             Examples: cat, ls, systemctl status, journalctl, ping, ip addr show,
-            qm list, qm status, df, ps, grep/cut/jq-style stream filters
+            qm list, qm status, df, ps, grep/cut/jq-style stream filters,
+            docker ps/inspect/logs (read-only docker subcommands)
 ```
 
 **Compound commands are validated segment-by-segment.** The command is split
@@ -284,6 +344,10 @@ verdict is the most severe segment: `cat /etc/hosts; useradd evil` is CONFIRM
 with certainty (unbalanced quotes) fails closed to CONFIRM. SAFE is only
 granted when *every* segment is on the allowlist — this means even if the LLM
 invents a command we've never seen before, it can't run it silently.
+
+**Guest targets (vm/lxc) are strictly read-only.** `run_command` on a guest
+accepts SAFE commands only — CONFIRM-classified commands are rejected without
+an approval prompt (see [Guest Access](#guest-access-vms-and-lxc-containers)).
 
 ## Running Tests
 

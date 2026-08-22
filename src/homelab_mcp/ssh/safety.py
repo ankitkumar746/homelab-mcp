@@ -68,6 +68,17 @@ SYSTEMCTL_POWER = {
 }
 
 FETCHERS = {"curl", "wget"}
+DOCKER_READ = {
+    "ps",
+    "images",
+    "inspect",
+    "logs",
+    "top",
+    "version",
+    "info",
+    "port",
+    "stats",
+}
 INTERPRETERS = {
     "sh",
     "bash",
@@ -215,6 +226,14 @@ BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (
         re.compile(r"\btee\s+(?:-\S+\s+)*/etc/(?:passwd|shadow|sudoers)\b", re.IGNORECASE),
         "Overwrite critical /etc file via tee",
+    ),
+    (
+        re.compile(r"\bpct\s+exec\b", re.IGNORECASE),
+        "Guest access must go through vm/lxc node targets (read-only enforced) — raw 'pct exec' is blocked",
+    ),
+    (
+        re.compile(r"\bqm\s+guest\s+exec\b", re.IGNORECASE),
+        "Guest access must go through vm/lxc node targets (read-only enforced) — raw 'qm guest exec' is blocked",
     ),
 ]
 
@@ -673,6 +692,14 @@ def _classify_unit(unit: str) -> tuple[SafetyResult, str | None]:
         if sub not in SYSTEMCTL_READ:
             return SafetyResult(level=SafetyLevel.CONFIRM, reason="Service management"), cmd
         return SafetyResult(level=SafetyLevel.SAFE, reason="Read-only / status command"), cmd
+
+    # 6b. docker subcommand analysis
+    if cmd == "docker":
+        sub = _first_non_option(tokens[1:])
+        sub = sub.lower() if sub else None
+        if sub is not None and sub in DOCKER_READ:
+            return SafetyResult(level=SafetyLevel.SAFE, reason="Read-only / status command"), cmd
+        return SafetyResult(level=SafetyLevel.CONFIRM, reason="Docker management"), cmd
 
     # 7. SAFE allowlist
     if _is_safe_command(cmd, tokens):
