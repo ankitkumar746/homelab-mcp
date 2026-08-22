@@ -96,6 +96,19 @@ def list_services(ctx: Context, node_name: str) -> dict:
                 )
             result["vms"].append({"vm_name": vm.name, "services": vm_services})
 
+        for lxc in node.lxc:
+            lxc_services = []
+            for svc in lxc.services:
+                lxc_services.append(
+                    {
+                        "name": svc.name,
+                        "type": svc.type,
+                        "service_name": svc.service_name,
+                        "note": svc.note,
+                    }
+                )
+            result["lxc"].append({"lxc_name": lxc.name, "services": lxc_services})
+
         return result
 
 
@@ -126,6 +139,15 @@ def get_service(ctx: Context, node_name: str, service_name: str) -> dict:
                 if svc.name == service_name:
                     return {
                         "location": f"vm:{vm.name}",
+                        **svc.model_dump(exclude_none=True),
+                        "config_files": resolve_config_paths(svc.configs),
+                    }
+
+        for lxc in node.lxc:
+            for svc in lxc.services:
+                if svc.name == service_name:
+                    return {
+                        "location": f"lxc:{lxc.name}",
                         **svc.model_dump(exclude_none=True),
                         "config_files": resolve_config_paths(svc.configs),
                     }

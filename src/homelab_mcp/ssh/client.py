@@ -30,21 +30,41 @@ def build_guest_command(target: SshTarget, command: str) -> str:
     return f"sudo {opener} bash -c {shlex.quote(command)}"
 
 
-def parse_guest_exec_output(raw: str) -> tuple[str, str, int]:
+def _repair_mojibake(s: str) -> str:
+    """Repair guest output that traveled through a Latin-1 decode.
+
+    PVE's qm JSON-encodes raw guest bytes as Latin-1 codepoints (Perl string
+    semantics), so UTF-8 guest output arrives mojibaked after json.loads.
+    Round-tripping latin-1 -> utf-8 reverses exactly that. No-op for ASCII,
+    and genuine Latin-1 text is left untouched (the utf-8 decode fails).
+    """
+    if not s:
+        return s
+    try:
+        return s.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return s
+
+
+def parse_guest_exec_output(
+    raw: str, fallback_stderr: str = "", fallback_exit: int = 0
+) -> tuple[str, str, int]:
     """Parse `qm guest exec` JSON output into (stdout, stderr, exit_code).
 
-    Falls back to raw text if the output isn't the expected JSON document.
+    When the output isn't the expected JSON document (e.g. sudo denied the
+    wrapper, qm errored, agent unreachable), the *host-side* stderr and exit
+    status are passed through so failures surface honestly.
     """
     try:
         doc = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
-        return raw, "", 0
+        return raw, fallback_stderr, fallback_exit
 
     if not isinstance(doc, dict):
-        return raw, "", 0
+        return raw, fallback_stderr, fallback_exit
 
-    stdout = doc.get("out-data", "")
-    stderr = doc.get("err-data", "")
+    stdout = _repair_mojibake(doc.get("out-data", ""))
+    stderr = _repair_mojibake(doc.get("err-data", ""))
     if doc.get("out-truncated") or doc.get("err-truncated"):
         stderr = (stderr + "\n[output truncated by guest agent]").strip("\n")
     exit_code = doc.get("exitcode", 0)
@@ -138,8 +158,10 @@ class SSHClient:
             },
         )
 
-        if target.kind == "vm" and "qm guest exec" in host_cmd:
-            stdout, stderr, exit_code = parse_guest_exec_output(result.stdout)
+        if target.kind == "vm":
+            stdout, stderr, exit_code = parse_guest_exec_output(
+                result.stdout, result.stderr, result.exit_status
+            )
             return stdout.replace("\r\n", "\n"), stderr.replace("\r\n", "\n"), exit_code
 
         return result.stdout, result.stderr, result.exit_status

@@ -44,6 +44,10 @@ def resolve_service_configs(
         for svc in vm.services:
             if svc.name == service_name:
                 return resolve_config_paths(svc.configs)
+    for lxc in services_node.lxc:
+        for svc in lxc.services:
+            if svc.name == service_name:
+                return resolve_config_paths(svc.configs)
     return None
 
 
@@ -77,6 +81,18 @@ def search_services(data: DataLoader, node_name: str, query: str) -> list[dict]:
                         "name": svc.name,
                         "type": svc.type,
                         "location": f"vm:{vm.name}",
+                        "service_name": svc.service_name,
+                    }
+                )
+
+    for lxc in services_node.lxc:
+        for svc in lxc.services:
+            if matches(svc):
+                results.append(
+                    {
+                        "name": svc.name,
+                        "type": svc.type,
+                        "location": f"lxc:{lxc.name}",
                         "service_name": svc.service_name,
                     }
                 )

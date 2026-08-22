@@ -332,7 +332,8 @@ CONFIRM  →  You get asked for approval before it runs
 
 SAFE     →  Executes directly, no approval needed
             Examples: cat, ls, systemctl status, journalctl, ping, ip addr show,
-            qm list, qm status, df, ps, grep/cut/jq-style stream filters
+            qm list, qm status, df, ps, grep/cut/jq-style stream filters,
+            docker ps/inspect/logs (read-only docker subcommands)
 ```
 
 **Compound commands are validated segment-by-segment.** The command is split

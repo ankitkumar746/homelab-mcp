@@ -187,6 +187,38 @@ class TestParseGuestExecOutput:
         stdout, _, _ = parse_guest_exec_output(raw)
         assert stdout == raw
 
+    def test_sudo_failure_passthrough(self):
+        """Regression: sudo denial on the host must surface its stderr and exit,
+        not be masked as ('', '', 0)."""
+        stdout, stderr, exit_code = parse_guest_exec_output(
+            "",
+            "sudo: a terminal is required to read the password\nsudo: a password is required\n",
+            1,
+        )
+        assert stdout == ""
+        assert "a password is required" in stderr
+        assert exit_code == 1
+
+    def test_qm_error_passthrough(self):
+        _stdout, stderr, exit_code = parse_guest_exec_output(
+            "", "ipcc_send_rec[1] failed: Unknown error -1\n", 255
+        )
+        assert "ipcc_send_rec" in stderr
+        assert exit_code == 255
+
+    def test_mojibake_repaired(self):
+        """PVE's Perl JSON encodes guest UTF-8 bytes as Latin-1 codepoints:
+        ● (E2 97 8F) arrives as \\u00E2\\u0097\\u008F — must round-trip back."""
+        raw = '{"exitcode": 0, "out-data": "\\u00e2\\u0097\\u008f dnsmasq.service"}'
+        stdout, _, _ = parse_guest_exec_output(raw)
+        assert stdout.startswith("\u25cf dnsmasq.service")  # ●
+
+    def test_genuine_latin1_left_alone(self):
+        """If the repair round-trip fails, the text is genuine Latin-1 — untouched."""
+        raw = '{"exitcode": 0, "out-data": "caf\\u00e9"}'
+        stdout, _, _ = parse_guest_exec_output(raw)
+        assert stdout == "caf\u00e9"
+
 
 class TestGuestRouteLockdown:
     """Raw pct exec / qm guest exec on the host must be BLOCKED so the
@@ -243,3 +275,73 @@ class TestGuestReadOnlyGateSemantics:
             "systemctl stop nginx",
         ]:
             assert validate_command(cmd).level != SafetyLevel.SAFE, cmd
+
+
+class TestDockerClassifier:
+    def test_read_subcommands_safe(self):
+        for cmd in [
+            "docker ps",
+            "docker ps -a",
+            "docker images",
+            "docker inspect netbox",
+            "docker logs netbox --tail 50",
+            "docker version",
+        ]:
+            assert validate_command(cmd).level == SafetyLevel.SAFE, cmd
+
+    def test_mutating_subcommands_confirm(self):
+        for cmd in [
+            "docker rm netbox",
+            "docker stop netbox",
+            "docker run -it debian",
+            "docker compose up -d",
+            "docker rmi debian",
+        ]:
+            assert validate_command(cmd).level == SafetyLevel.CONFIRM, cmd
+
+    def test_bare_docker_confirm(self):
+        assert validate_command("docker").level == SafetyLevel.CONFIRM
+
+
+class TestLxcServiceDataPaths:
+    """Regression: service lookup/search/configs must reach lxc entries,
+    not silently return empty for container-hosted services."""
+
+    def test_list_services_includes_lxc(self, monkeypatch):
+        from contextlib import contextmanager
+
+        from homelab_mcp.tools import inventory
+        from homelab_mcp.tools.inventory import list_services
+
+        @contextmanager
+        def _noop_log(*_a, **_k):
+            yield type("CallCtx", (), {"status": None, "request_id": "t"})()
+
+        monkeypatch.setattr(inventory, "log_tool_call", _noop_log)
+
+        dl = DataLoader(Path("data"))
+
+        class FakeCtx:
+            request_context = type("R", (), {})()
+
+        app_ctx = type("A", (), {"data": dl, "logger": None})()
+        FakeCtx.request_context.lifespan_context = app_ctx
+
+        result = list_services(FakeCtx(), "homelab")
+        assert any(e["lxc_name"] == "netbox01" for e in result["lxc"])
+
+    def test_resolve_service_configs_finds_lxc(self):
+        from homelab_mcp.data.resolver import resolve_service_configs
+
+        dl = DataLoader(Path("data"))
+        configs = resolve_service_configs(dl, "homelab", "netbox")
+        assert configs, "netbox service configs must resolve via lxc path"
+        paths = [c["path"] for c in configs]
+        assert "/opt/netbox-docker/docker-compose.yml" in paths
+
+    def test_search_services_finds_lxc(self):
+        from homelab_mcp.data.resolver import search_services
+
+        dl = DataLoader(Path("data"))
+        results = search_services(dl, "homelab", "netbox")
+        assert any(r["location"] == "lxc:netbox01" for r in results)

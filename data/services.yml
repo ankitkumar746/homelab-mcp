@@ -69,12 +69,54 @@ cluster:
     lxc:
       - name: netbox01
         services:
+          - name: docker
+            type: container_runtime
+            service_name: docker
+            note: Docker Engine + containerd; runs the netbox-docker compose stack
+
           - name: netbox
             type: netbox_ipam
-            service_name: netbox
+            note: NetBox 4.5.10 (docker compose service, custom image with netbox-topology-views plugin). Web on port 8000->8080, Granian 2 workers.
             configs:
-              - directory: /etc/netbox
+              - directory: /opt/netbox-docker
+                files:
+                  - path: docker-compose.yml
+                    description: Stock netbox-docker compose (service definitions)
+                  - path: docker-compose.override.yml
+                    description: Local overrides - custom image build, memory caps, postgres/redis tuning
+                  - path: Dockerfile.custom
+                    description: Custom image build with topology-views plugin
+              - directory: /opt/netbox-docker/configuration
                 files:
                   - path: configuration.py
-                    description: NetBox configuration (database, redis, allowed hosts)
-            note: NetBox IPAM/DCIM. RQ worker and housekeeping run as separate units.
+                    description: NetBox main configuration (DB, redis, allowed hosts)
+                  - path: plugins.py
+                    description: Plugin configuration (netbox_topology_views)
+                  - path: logging.py
+                    description: NetBox logging configuration
+              - directory: /opt/netbox-docker/env
+                files:
+                  - path: netbox.env
+                    description: NetBox env/secrets (SECRET_KEY, DB password) - sensitive
+                  - path: postgres.env
+                    description: PostgreSQL credentials - sensitive
+
+          - name: netbox-worker
+            type: netbox_rq_worker
+            note: Redis Queue worker (docker compose service, same custom image)
+
+          - name: netbox-housekeeping
+            type: netbox_housekeeping
+            note: Scheduled cleanup jobs (docker compose service)
+
+          - name: postgres
+            type: postgresql
+            note: PostgreSQL 17 (docker compose service, tuned for <100-object DB)
+
+          - name: redis
+            type: redis
+            note: Redis for queueing/caching (docker compose service, 50mb lru)
+
+          - name: redis-cache
+            type: redis
+            note: Dedicated Redis cache (docker compose service, 50mb lru)
