@@ -1,5 +1,25 @@
+from dataclasses import dataclass
+
 from homelab_mcp.data.loader import DataLoader
 from homelab_mcp.data_models import ConfigDirectory, ServiceEntry
+
+GUEST_KINDS = {"vm", "lxc"}
+
+
+@dataclass
+class SshTarget:
+    """A resolved command-execution target.
+
+    For proxmox targets, commands run directly over SSH as the configured user.
+    For guest targets (vm/lxc), commands are wrapped in `qm guest exec`/`pct exec`
+    on the *proxmox node* named by the instance's `proxmox_node` field — the
+    guest is never SSH'd into directly.
+    """
+
+    host: str
+    node_name: str
+    kind: str
+    vmid: int | None = None
 
 
 def resolve_config_paths(configs: list[ConfigDirectory]) -> list[dict[str, str]]:
@@ -67,3 +87,41 @@ def search_services(data: DataLoader, node_name: str, query: str) -> list[dict]:
 def resolve_node_ip(data: DataLoader, node_name: str) -> str | None:
     instance = data.get_instance(node_name)
     return instance.wan_ip if instance else None
+
+
+def resolve_ssh_target(data: DataLoader, node_name: str) -> SshTarget | None:
+    """Resolve a node name to an execution target.
+
+    - proxmox node → direct SSH target at its wan_ip
+    - vm/lxc guest → target on its `proxmox_node`, carrying the vmid
+
+    Returns None if the node (or, for guests, its proxmox_node) is unknown.
+    """
+    instance = data.get_instance(node_name)
+    if not instance:
+        return None
+
+    if instance.kind in GUEST_KINDS:
+        if instance.vmid is None:
+            raise ValueError(
+                f"Instance '{node_name}' has kind '{instance.kind}' but no vmid — cannot route guest commands"
+            )
+        if instance.proxmox_node == node_name:
+            raise ValueError(f"Instance '{node_name}' has invalid proxmox_node pointing at itself")
+        host_instance = data.get_instance(instance.proxmox_node)
+        if not host_instance:
+            raise ValueError(
+                f"proxmox_node '{instance.proxmox_node}' (referenced by '{node_name}') not found in instances"
+            )
+        if host_instance.kind in GUEST_KINDS:
+            raise ValueError(
+                f"proxmox_node '{instance.proxmox_node}' (referenced by '{node_name}') is itself a guest"
+            )
+        return SshTarget(
+            host=host_instance.wan_ip,
+            node_name=node_name,
+            kind=instance.kind,
+            vmid=instance.vmid,
+        )
+
+    return SshTarget(host=instance.wan_ip, node_name=node_name, kind=instance.kind)

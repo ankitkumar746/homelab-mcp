@@ -20,6 +20,8 @@ def list_nodes(ctx: Context) -> dict:
                     "wan_ip": instance.wan_ip,
                     "platform_user": instance.platform_user,
                     "proxmox_node": instance.proxmox_node,
+                    "kind": instance.kind,
+                    "vmid": instance.vmid,
                 }
             )
         return {"nodes": nodes}

@@ -127,15 +127,30 @@ Update all four YAML files: `instances.yaml`, `hardware.yaml`,
 
 ## How to Add a New VM
 
-1. Add VM to `network.yaml` under the node's `vms:` list
-2. Add VM to `services.yaml` under the node's `vms:` list
-3. Add VM to SQLite: `INSERT INTO vms (name, vmid, node, ...) VALUES (...)`
+1. Add the VM to `instances.yaml` as a cluster entry with `kind: vm` and its
+   `vmid` — this is what makes it addressable by the MCP tools
+   (commands route through `proxmox_node` via `qm guest exec`, read-only)
+2. Add VM to `network.yaml` under the node's `vms:` list
+3. Add VM to `services.yaml` under the node's `vms:` list
 4. Use the same `name` in all three places
+
+```yaml
+# instances.yaml
+cluster:
+  - name: myvm
+    fqdn: myvm.ankit.lab
+    platform_user: platform
+    wan_ip: 192.168.200.50      # informational for guests
+    proxmox_node: homelab       # hypervisor that owns the guest
+    kind: vm
+    vmid: 50002
+```
 
 ## How to Add a New LXC Container
 
-Same as VM but under `lxc:` instead of `vms:` in both YAML files.
-Insert into SQLite `containers` table instead of `vms`.
+Same as VM (instances entry with `kind: lxc` + `vmid`), plus entries under
+`lxc:` instead of `vms:` in `network.yaml` and `services.yaml`. Guest access
+uses `pct exec` (read-only).
 
 ## How to Add a New Service
 

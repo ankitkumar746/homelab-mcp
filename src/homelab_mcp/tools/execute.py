@@ -1,31 +1,36 @@
 from mcp.server.fastmcp import Context
 
 from homelab_mcp.context import AppContext
-from homelab_mcp.data.resolver import resolve_node_ip
+from homelab_mcp.data.resolver import GUEST_KINDS, resolve_ssh_target
 from homelab_mcp.jsonlog import log_tool_call
 from homelab_mcp.mcp_instance import mcp
-from homelab_mcp.ssh.safety import SafetyLevel
+from homelab_mcp.ssh.safety import SafetyLevel, validate_command
 
 
 @mcp.tool()
 async def run_command(ctx: Context, node_name: str, command: str) -> dict:
-    """Run a command on a Proxmox node via SSH. The command goes through a safety pipeline:
-    BLOCKED commands are rejected, SAFE commands execute directly, all others require approval.
+    """Run a command on a node via SSH. Commands run as the SSH user (with sudo for
+    read-only tools). The command goes through a safety pipeline:
+    BLOCKED commands are rejected; on vm/lxc guests only read-only (SAFE) commands
+    are allowed — anything else is rejected without asking; on the proxmox host,
+    non-SAFE commands require explicit approval.
 
     Args:
-        node_name: Name of the Proxmox node (e.g., 'homelab')
+        node_name: Name of the node (e.g., 'homelab'), VM (e.g., 'infravm'), or LXC (e.g., 'netbox01')
         command: The shell command to execute
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
     logger = app_ctx.logger
 
     with log_tool_call(logger, "run_command", node=node_name, command=command) as call_ctx:
-        ip = resolve_node_ip(app_ctx.data, node_name)
-        if not ip:
+        try:
+            target = resolve_ssh_target(app_ctx.data, node_name)
+        except ValueError as e:
+            call_ctx.status = "error"
+            return {"error": str(e)}
+        if target is None:
             call_ctx.status = "error"
             return {"error": f"Node '{node_name}' not found"}
-
-        from homelab_mcp.ssh.safety import validate_command
 
         safety = validate_command(command)
 
@@ -46,6 +51,31 @@ async def run_command(ctx: Context, node_name: str, command: str) -> dict:
             return {
                 "status": "blocked",
                 "reason": safety.reason,
+                "command": command,
+            }
+
+        # Read-only gate for guest targets: commands inside VMs/LXCs run as
+        # guest-root with no guest-side permission layer, so only SAFE
+        # (allowlisted read-only) commands may run — no approval path exists.
+        if target.kind in GUEST_KINDS and safety.level != SafetyLevel.SAFE:
+            call_ctx.status = "blocked"
+            logger.warning(
+                f"guest read-only gate: {safety.reason}",
+                extra={
+                    "event": "safety.guest_gate",
+                    "request_id": call_ctx.request_id,
+                    "command": command,
+                    "node": node_name,
+                    "safety_level": safety.level.value,
+                    "status": "blocked",
+                },
+            )
+            await ctx.warning(
+                f"Rejected on {node_name}: guest targets are read-only — '{command}' is not an allowlisted read-only command"
+            )
+            return {
+                "status": "blocked",
+                "reason": f"Guest targets are read-only: {safety.reason}",
                 "command": command,
             }
 
@@ -94,7 +124,7 @@ async def run_command(ctx: Context, node_name: str, command: str) -> dict:
                 }
 
         await ctx.info(f"Executing on {node_name}: {command}")
-        stdout, stderr, exit_code = await app_ctx.ssh.execute(ip, command)
+        stdout, stderr, exit_code = await app_ctx.ssh.execute(target, command)
 
         return {
             "status": "executed",

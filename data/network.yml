@@ -85,7 +85,7 @@ cluster:
         interfaces:
           - name: ens18
             bridge: vmbr1
-            ip: 192.168.200.2
+            ip: 192.168.200.50
         dhcp_scope:
           service: dnsmasq
           interface: ens18
@@ -122,4 +122,9 @@ cluster:
               - path: debian.cfg
                 description: Debian preseed for automated install
     
-    lxc: []
+    lxc:
+      - name: netbox01
+        interfaces:
+          - name: eth0
+            bridge: vmbr1
+            ip: 192.168.200.10

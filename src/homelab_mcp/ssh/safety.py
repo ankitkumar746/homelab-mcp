@@ -216,6 +216,14 @@ BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         re.compile(r"\btee\s+(?:-\S+\s+)*/etc/(?:passwd|shadow|sudoers)\b", re.IGNORECASE),
         "Overwrite critical /etc file via tee",
     ),
+    (
+        re.compile(r"\bpct\s+exec\b", re.IGNORECASE),
+        "Guest access must go through vm/lxc node targets (read-only enforced) — raw 'pct exec' is blocked",
+    ),
+    (
+        re.compile(r"\bqm\s+guest\s+exec\b", re.IGNORECASE),
+        "Guest access must go through vm/lxc node targets (read-only enforced) — raw 'qm guest exec' is blocked",
+    ),
 ]
 
 CONFIRM_PATTERNS: list[tuple[re.Pattern[str], str]] = [

@@ -66,4 +66,15 @@ cluster:
                   - path: debian.cfg
                     description: Debian preseed for automated install
     
-    lxc: []
+    lxc:
+      - name: netbox01
+        services:
+          - name: netbox
+            type: netbox_ipam
+            service_name: netbox
+            configs:
+              - directory: /etc/netbox
+                files:
+                  - path: configuration.py
+                    description: NetBox configuration (database, redis, allowed hosts)
+            note: NetBox IPAM/DCIM. RQ worker and housekeeping run as separate units.
